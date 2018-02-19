@@ -1,0 +1,27 @@
+#!/usr/bin/awk -f
+# HostMAC.awk - append hardware MAC address to hostname
+#
+# Copyright Feb 2018 peter at gamache dot us
+# Licence: 
+# Unlimited distribution/use is allowed, including distribution of derivative works.
+# All reproductions must include this license text and the copyright statement above.
+# NO WARRANTY expressed or implied, including but not limited to fitness for purpose.
+
+BEGIN { 
+  # Use the rightmost X characters of the MAC address (hexedecimal form)
+  UseChars=6; # 6 or 12 are common choices
+  getline defhost < "/etc/hostname"; # grab default
+  newhost=defhost;
+  "ip -o link show eth0" | getline;
+  if ($0 ~ / link.ether /) { setHost("eth0", tolower($(NF-2))); }
+  exit(1); # Exit with error if we do not see expected ip link output.
+}
+
+function setHost(interface, macaddr) {
+  macpart=gensub(/^([0-9a-f]{2}):([0-9a-f]{2}):([0-9a-f]{2}):([0-9a-f]{2}):([0-9a-f]{2}):([0-9a-f]{2})$/,"\\1\\2\\3\\4\\5\\6",1,macaddr);
+  macpart=substr(macpart, (length(macpart) - UseChars));
+  newhost=defhost "-" macpart;
+  printf("HostMAC: Using %s MAC address for hostname: %s\n", interface, newhost);
+  myrc=system("hostname " newhost); # pass on the return code to the caller
+  exit(myrc);
+}
